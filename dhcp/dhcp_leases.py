@@ -7,6 +7,7 @@
 # print out stats on the dhcp.leases file
 #
 import datetime, bisect
+import sys
 
 def parse_timestamp(raw_str):
         tokens = raw_str.split()
@@ -222,6 +223,13 @@ def select_active_leases(leases_db, as_of_ts):
         for ip_address in leases_db:
                 lease_rec = leases_db[ip_address][0]
 
+                # if entry is missing "ends" key, bad things happen during parse
+                # so we explicity override to "never" if it's not available
+                # this allows us to handle leases that are in db, but aren't 
+                # actually allocated to a system right now
+                if lease_rec['ends'] == '':
+                     leases_db[ip_address][0]['ends'] = "never"
+                     
                 if lease_is_active(lease_rec, as_of_ts):
                         ip_as_int = ipv4_to_int(ip_address)
                         insertpos = bisect.bisect(sortedarray, ip_as_int)
@@ -234,7 +242,8 @@ def select_active_leases(leases_db, as_of_ts):
 ##############################################################################
 
 
-myfile = open('/var/lib/dhcpd/dhcpd.leases', 'r')
+# grab the dhcp leases file from the command line
+myfile = open(sys.argv[1], 'r')
 leases = parse_leases_file(myfile)
 myfile.close()
 
